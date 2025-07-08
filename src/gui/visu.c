@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <unistd.h>
-#include "../core/audio_anal.h"
+#include "../core/fourier.h"
 #include "../utils/utils.h"
 
 
@@ -138,25 +138,10 @@ int main() {
 	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
 	glCompileShader(vertexShader);
 
-	int success;
-	char infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		fprintf(stderr, "Vertex shader compilation failed:\n%s\n", infoLog);
-	}
-
 	GLuint fragmentShader;
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
 	glCompileShader(fragmentShader);
-
-	// After compiling fragment shader
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		fprintf(stderr, "Fragment shader compilation failed:\n%s\n", infoLog);
-	}
 	
 	GLuint shaderProgram;
 	shaderProgram = glCreateProgram();
@@ -164,12 +149,6 @@ int main() {
 	glAttachShader(shaderProgram, fragmentShader);
 	glLinkProgram(shaderProgram);
 
-	// After linking program
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		fprintf(stderr, "Shader program linking failed:\n%s\n", infoLog);
-	}
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 

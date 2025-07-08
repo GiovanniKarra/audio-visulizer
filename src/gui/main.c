@@ -16,20 +16,20 @@ static void activate(GtkApplication *app, gpointer user_data) {
 	window = gtk_application_window_new(app);
 	gtk_window_set_title(GTK_WINDOW(window), "Gio Visualizer");
 	gtk_window_set_default_size(GTK_WINDOW(window), 1280, 720);
-
+	
 	GtkWidget *page_mainmenu = create_mainmenu_page();
 	GtkWidget *page_plotter = create_plot_page();
 	
 	GtkWidget *page_stack = gtk_stack_new();
 	gtk_stack_add_child(GTK_STACK(page_stack), page_plotter);
 	gtk_stack_add_child(GTK_STACK(page_stack), page_mainmenu);
-
+	
 	GMenu *menubar = create_menubar();
 	gtk_application_set_menubar(app, G_MENU_MODEL(menubar));
 	gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(window), TRUE);
-
+	
 	gtk_window_set_child(GTK_WINDOW(window), page_stack);
-
+	
 	gtk_window_present(GTK_WINDOW(window));
 }
 

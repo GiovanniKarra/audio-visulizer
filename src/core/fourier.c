@@ -1,4 +1,4 @@
-#include "audio_anal.h"
+#include "fourier.h"
 #include <pthread.h>
 #include <stddef.h>
 
