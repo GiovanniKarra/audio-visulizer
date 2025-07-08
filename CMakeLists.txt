@@ -11,12 +11,4 @@ target_link_libraries(main PRIVATE ${GTK4_LIBRARIES} -lGL glad m)
 target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER})
 # target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Wall -Wextra -Wpedantic -Werror)
 
-add_executable(visu src/gui/visu.c src/core/fourier.c src/utils/utils.c)
-
 add_subdirectory(glad)
-
-add_subdirectory(glfw)
-target_link_libraries(visu glfw m pthread glad dl)
-find_package(OpenGL REQUIRED)
-target_link_libraries(visu OpenGL::GL)
-target_compile_options(visu PRIVATE)# -Wall -Wextra -Wpedantic -Werror)
