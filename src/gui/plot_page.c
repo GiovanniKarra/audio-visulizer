@@ -2,6 +2,55 @@
 #include "gl_utils.h"
 
 
+
+/* AUDIO PLAY */
+
+void init_portaudio() {
+	PaError err = Pa_Initialize();
+	if (err != paNoError) {
+		printf("Initialization error : %s\n", Pa_GetErrorText(err));
+	}
+}
+
+
+int audio_player_callback(
+	const void *inputBuffer, void *outputBuffer,
+	unsigned long framesPerBuffer,
+	const PaStreamCallbackTimeInfo* timeInfo,
+	PaStreamCallbackFlags statusFlags,
+	void *userData
+) {
+	plot_params *params = (plot_params*)userData;
+	float *out = (float*)outputBuffer;
+	for (int i = 0; i < framesPerBuffer; i++) {
+		out[i] = params->paused ? 0 : params->signal.data[params->time_index+i];
+	}
+	if (!params->paused) params->time_index += framesPerBuffer;
+	return 0;
+}
+
+
+void play_audio_signal(plot_params *params) {
+	PaError err = Pa_OpenDefaultStream(
+		&params->stream,
+		0,
+		1,
+		paFloat32,
+		params->signal.sample_rate,
+		512,
+		audio_player_callback,
+		(void*)params
+	);
+	if (err != paNoError) {
+		printf("Default stream error : %s\n", Pa_GetErrorText(err));
+	}
+	err = Pa_StartStream(params->stream);
+	if (err != paNoError) {
+		printf("Start stream error : %s\n", Pa_GetErrorText(err));
+	}
+}
+
+
 /* RENDERING PANEL */
 
 gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
@@ -54,7 +103,7 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 		printf("OpenGL error: 0x%x\n", err);
 	}
 
-	params->time_index += 16*1e-3*params->signal.sample_rate;
+	//params->time_index += 16*1e-3*params->signal.sample_rate;
 
 	return TRUE;
 }
@@ -77,7 +126,7 @@ void on_realize(GtkGLArea *area) {
 }
 
 
-gboolean tick(gpointer data) {
+gboolean graphics_tick(gpointer data) {
 	GtkGLArea *area = GTK_GL_AREA(data);
 	gtk_gl_area_queue_render(area);
 	return TRUE;
@@ -88,7 +137,7 @@ GtkWidget *create_render_panel(plot_params *params) {
 	GtkWidget *plotting_area = gtk_gl_area_new();
 	g_signal_connect(plotting_area, "realize", G_CALLBACK(on_realize), NULL);
 	g_signal_connect(plotting_area, "render", G_CALLBACK(render), params);
-	g_timeout_add(16, tick, plotting_area);
+	g_timeout_add(16, graphics_tick, plotting_area);
 	return plotting_area;
 }
 
@@ -98,22 +147,20 @@ GtkWidget *create_render_panel(plot_params *params) {
 
 // BIN COUNT
 
-void bin_count_changed(GtkAdjustment *self, gpointer data) {
-	plot_params *params = (plot_params*)data;
-	params->bin_count = gtk_adjustment_get_value(self);
+void slider_value_changed(GtkAdjustment *self, gpointer data) {
+	int *variable = (int*)data;
+	*variable = gtk_adjustment_get_value(self);
 }
 
 
-GtkWidget *create_bins_slider(plot_params *params) {
-	GtkWidget *bin_slider = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+GtkWidget *create_slider(int *associated_variable, int min_value, int max_value) {
+	GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
 	GtkWidget *slider_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
-	int min_value = 20;
-	int max_value = MAX_FREQ_BINS;
-	int init_value = params->bin_count;
+	int init_value = *associated_variable;
 	GtkAdjustment *adjustment = gtk_adjustment_new(init_value, min_value, max_value, 1, 10, 0);
-	g_signal_connect(adjustment, "value-changed", G_CALLBACK(bin_count_changed), params);
+	g_signal_connect(adjustment, "value-changed", G_CALLBACK(slider_value_changed), associated_variable);
 
 	GtkWidget *slider = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, adjustment);
 	gtk_scale_set_digits(GTK_SCALE(slider), 0);
@@ -126,18 +173,20 @@ GtkWidget *create_bins_slider(plot_params *params) {
 	gtk_widget_set_hexpand(slider_box, TRUE);
 	gtk_widget_set_hexpand(slider, TRUE);
 
-	gtk_box_append(GTK_BOX(bin_slider), gtk_label_new("Bin Count"));
-	gtk_box_append(GTK_BOX(bin_slider), slider_box);
+	gtk_box_append(GTK_BOX(box), gtk_label_new("Bin Count"));
+	gtk_box_append(GTK_BOX(box), slider_box);
 
-	return bin_slider;
+	return box;
 }
 
 
 // FILE CHOOSER
 
 void set_audio_file(const char *filename, plot_params *params) {
+	Pa_AbortStream(params->stream);
 	giodio_file_to_audio(filename, &params->signal, TRUE);
 	params->time_index = 0;
+	play_audio_signal(params);
 }
 
 
@@ -150,7 +199,6 @@ void choose_file_response(GtkDialog *dialog, int response, gpointer data) {
 		GFile *file = gtk_file_chooser_get_file(chooser);
 		const char *filepath = g_file_get_path(file);
 		set_audio_file(filepath, params);
-		printf("this should workd?\n");
 		gtk_editable_set_text(GTK_EDITABLE(file_name_field), filepath);
 	}
 	gtk_window_destroy(GTK_WINDOW(dialog));
@@ -200,11 +248,73 @@ GtkWidget *create_audio_file_loader(plot_params *params) {
 GtkWidget *create_side_panel(plot_params *params) {
 	GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 	
-	gtk_box_append(GTK_BOX(sidebar), gtk_button_new_with_label("Yo"));
-	gtk_box_append(GTK_BOX(sidebar), create_bins_slider(params));
+	gtk_box_append(GTK_BOX(sidebar), create_slider(&params->bin_count, 20, MAX_FREQ_BINS));
 	gtk_box_append(GTK_BOX(sidebar), create_audio_file_loader(params));
 
 	return sidebar;
+}
+
+
+/* TIME SCALE */
+
+gboolean update_time_slider(gpointer data) {
+	void **user_data = (void**)data;
+	GtkAdjustment *adjustment = (GtkAdjustment*)user_data[0];
+	plot_params *params = (plot_params*)user_data[1];
+	gulong signalid = (gulong)user_data[2];
+	
+	gtk_adjustment_set_upper(adjustment, params->signal.n);
+
+	g_signal_handler_block(adjustment, signalid);
+	gtk_adjustment_set_value(adjustment, params->time_index);
+	g_signal_handler_unblock(adjustment, signalid);
+
+	return TRUE;
+}
+
+
+void unpause_playback(GtkWidget *self, gpointer data) {
+	plot_params *params = (plot_params*)data;
+	params->paused = FALSE;
+}
+
+
+void pause_playback(GtkWidget *self, gpointer data) {
+	plot_params *params = (plot_params*)data;
+	params->paused = TRUE;
+}
+
+
+GtkWidget *create_time_slider(plot_params *params) {
+	GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+
+	GtkAdjustment *adjustment = gtk_adjustment_new(0, 0, params->signal.n, 1, 1000, 1000);
+	GtkWidget *slider = gtk_scale_new(GTK_ORIENTATION_HORIZONTAL, adjustment);
+
+	gulong signalid = g_signal_connect(
+		adjustment,
+		"value-changed",
+		G_CALLBACK(slider_value_changed),
+		&params->time_index
+	);
+
+	void **timeout_data = g_new0(void*, 3);
+	timeout_data[0] = adjustment;
+	timeout_data[1] = params;
+	timeout_data[2] = (void*)signalid;
+	g_object_set_data_full(G_OBJECT(slider), "timeout-data", timeout_data, g_free);
+	g_timeout_add(16, update_time_slider, timeout_data);
+
+	GtkWidget *play_button = gtk_button_new_with_label("Play");
+	GtkWidget *pause_button = gtk_button_new_with_label("Pause");
+	g_signal_connect(play_button, "clicked", G_CALLBACK(unpause_playback), params);
+	g_signal_connect(pause_button, "clicked", G_CALLBACK(pause_playback), params);
+
+	gtk_box_append(GTK_BOX(box), slider);
+	gtk_box_append(GTK_BOX(box), play_button);
+	gtk_box_append(GTK_BOX(box), pause_button);
+
+	return box;
 }
 
 
@@ -218,14 +328,18 @@ GtkWidget *create_plot_page() {
 	params->bin_count = 1000;
 	giodio_file_to_audio("../song.giodio", &params->signal, FALSE);
 
+	init_portaudio();
+	play_audio_signal(params);
+
 	GtkWidget *plotting_area = create_render_panel(params);
-	
 	GtkWidget *sidebar = create_side_panel(params);
+	GtkWidget *timescale = create_time_slider(params);
 
 	gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
 	gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
 	gtk_grid_attach(GTK_GRID(grid), sidebar, 0, 0, 3, 1);
-	gtk_grid_attach(GTK_GRID(grid), plotting_area, 3, 0, 7, 1);
+	gtk_grid_attach(GTK_GRID(grid), plotting_area, 3, 0, 7, 9);
+	gtk_grid_attach(GTK_GRID(grid), timescale, 3, 9, 7, 1);
 	
 	return grid;
 }

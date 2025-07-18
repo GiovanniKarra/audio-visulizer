@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include <gio/gio.h>
+#include <portaudio.h>
 
 #include "../core/fourier.h"
 #include "../utils/utils.h"
@@ -15,7 +16,9 @@
 typedef struct {
 	int bin_count;
 	audio_data signal;
-	size_t time_index;
+	uint32_t time_index;
+	gboolean paused;
+	PaStream *stream;
 } plot_params;
 
 GtkWidget *create_mainmenu_page();

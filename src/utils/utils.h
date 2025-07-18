@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 typedef struct {
-	size_t n;
+	uint32_t n;
 	int sample_rate;
 	float *data;
 } audio_data;

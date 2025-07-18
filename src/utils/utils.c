@@ -27,10 +27,12 @@ float *read_giodio_file(const char *filename, int *recv_sample_count, int *recv_
 void giodio_file_to_audio(const char *filename, audio_data *ret, bool free_old_data) {
 	if (free_old_data) free(ret->data);
 	
-	size_t n;
+	uint32_t n;
 	int sample_rate;
 	float *data = read_giodio_file(filename, (int*)&n, &sample_rate);
 
+	printf("read n : %d\n", n);
+	printf("prev n : %d\n", ret->n);
 	ret->n = n;
 	ret->sample_rate = sample_rate;
 	ret->data = data;
