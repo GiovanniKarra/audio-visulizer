@@ -9,14 +9,16 @@ add_executable(main
 	src/gui/mainmenu.c
 	src/gui/plot_page.c
 	src/gui/gl_utils.c
-	src/utils/utils.c
+	src/audio/read.c
+	src/audio/play.c
 	src/core/fourier.c
 )
 
 target_include_directories(main PRIVATE ${GTK4_INCLUDE_DIRS})
-target_link_libraries(main PRIVATE ${GTK4_LIBRARIES} -lGL glad m portaudio)
-target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER})
+target_link_libraries(main PRIVATE ${GTK4_LIBRARIES} -lGL glad m portaudio)# libsndfile)
+target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Werror)
 # target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Wall -Wextra -Wpedantic -Werror)
 
 add_subdirectory(glad)
 add_subdirectory(portaudio)
+# add_subdirectory(libsndfile)

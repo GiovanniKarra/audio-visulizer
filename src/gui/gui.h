@@ -6,7 +6,7 @@
 #include <portaudio.h>
 
 #include "../core/fourier.h"
-#include "../utils/utils.h"
+#include "../audio/audio.h"
 
 #define PAGE_MAINMENU 0
 #define PAGE_PLOTTER 1
@@ -16,8 +16,6 @@
 typedef struct {
 	int bin_count;
 	audio_data signal;
-	uint32_t time_index;
-	gboolean paused;
 	PaStream *stream;
 } plot_params;
 

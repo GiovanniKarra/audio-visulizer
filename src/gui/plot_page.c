@@ -2,55 +2,6 @@
 #include "gl_utils.h"
 
 
-
-/* AUDIO PLAY */
-
-void init_portaudio() {
-	PaError err = Pa_Initialize();
-	if (err != paNoError) {
-		printf("Initialization error : %s\n", Pa_GetErrorText(err));
-	}
-}
-
-
-int audio_player_callback(
-	const void *inputBuffer, void *outputBuffer,
-	unsigned long framesPerBuffer,
-	const PaStreamCallbackTimeInfo* timeInfo,
-	PaStreamCallbackFlags statusFlags,
-	void *userData
-) {
-	plot_params *params = (plot_params*)userData;
-	float *out = (float*)outputBuffer;
-	for (int i = 0; i < framesPerBuffer; i++) {
-		out[i] = params->paused ? 0 : params->signal.data[params->time_index+i];
-	}
-	if (!params->paused) params->time_index += framesPerBuffer;
-	return 0;
-}
-
-
-void play_audio_signal(plot_params *params) {
-	PaError err = Pa_OpenDefaultStream(
-		&params->stream,
-		0,
-		1,
-		paFloat32,
-		params->signal.sample_rate,
-		512,
-		audio_player_callback,
-		(void*)params
-	);
-	if (err != paNoError) {
-		printf("Default stream error : %s\n", Pa_GetErrorText(err));
-	}
-	err = Pa_StartStream(params->stream);
-	if (err != paNoError) {
-		printf("Start stream error : %s\n", Pa_GetErrorText(err));
-	}
-}
-
-
 /* RENDERING PANEL */
 
 gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
@@ -66,7 +17,7 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 
 	complex double freq_data[n];
 	float real_data[n];
-	dftf_para(params->signal.data+params->time_index, freq_data, n, 16);
+	dftf_para(params->signal.data+params->signal.time_index, freq_data, n, 16);
 	for (size_t i = 0; i < n; i++) {
 		real_data[i] = cabs(freq_data[i]);
 	}
@@ -103,7 +54,7 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 		printf("OpenGL error: 0x%x\n", err);
 	}
 
-	//params->time_index += 16*1e-3*params->signal.sample_rate;
+	//params->signal.time_index += 16*1e-3*params->signal.sample_rate;
 
 	return TRUE;
 }
@@ -183,10 +134,13 @@ GtkWidget *create_slider(int *associated_variable, int min_value, int max_value)
 // FILE CHOOSER
 
 void set_audio_file(const char *filename, plot_params *params) {
-	Pa_AbortStream(params->stream);
-	giodio_file_to_audio(filename, &params->signal, TRUE);
-	params->time_index = 0;
-	play_audio_signal(params);
+	// PaError err = Pa_AbortStream(params->stream);
+	// if (err != paNoError) {
+	// 	printf("Abort stream error : %s\n", Pa_GetErrorText(err));
+	// }
+	giodio_file_to_audio(filename, &params->signal);
+	params->signal.time_index = 0;
+	// play_audio_signal(&params->stream, &params->signal);
 }
 
 
@@ -214,6 +168,10 @@ void choose_audio_file(GtkButton *self, gpointer data) {
 		GTK_RESPONSE_ACCEPT,
 		NULL
 	);
+	GtkFileFilter *filter = gtk_file_filter_new();
+	gtk_file_filter_add_pattern(filter, "*.wav");
+	gtk_file_filter_add_pattern(filter, "*.giodio");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(diag), filter);
 	g_signal_connect(G_OBJECT(diag), "response", G_CALLBACK(choose_file_response), data);
 	gtk_window_present(GTK_WINDOW(diag));
 }
@@ -266,7 +224,7 @@ gboolean update_time_slider(gpointer data) {
 	gtk_adjustment_set_upper(adjustment, params->signal.n);
 
 	g_signal_handler_block(adjustment, signalid);
-	gtk_adjustment_set_value(adjustment, params->time_index);
+	gtk_adjustment_set_value(adjustment, params->signal.time_index);
 	g_signal_handler_unblock(adjustment, signalid);
 
 	return TRUE;
@@ -275,13 +233,13 @@ gboolean update_time_slider(gpointer data) {
 
 void unpause_playback(GtkWidget *self, gpointer data) {
 	plot_params *params = (plot_params*)data;
-	params->paused = FALSE;
+	params->signal.paused = FALSE;
 }
 
 
 void pause_playback(GtkWidget *self, gpointer data) {
 	plot_params *params = (plot_params*)data;
-	params->paused = TRUE;
+	params->signal.paused = TRUE;
 }
 
 
@@ -295,7 +253,7 @@ GtkWidget *create_time_slider(plot_params *params) {
 		adjustment,
 		"value-changed",
 		G_CALLBACK(slider_value_changed),
-		&params->time_index
+		&params->signal.time_index
 	);
 
 	void **timeout_data = g_new0(void*, 3);
@@ -326,10 +284,10 @@ GtkWidget *create_plot_page() {
 	g_object_set_data_full(G_OBJECT(grid), "params", params, g_free);
 	
 	params->bin_count = 1000;
-	giodio_file_to_audio("../song.giodio", &params->signal, FALSE);
+	giodio_file_to_audio("../song.giodio", &params->signal);
 
 	init_portaudio();
-	play_audio_signal(params);
+	play_audio_signal(&params->stream, &params->signal);
 
 	GtkWidget *plotting_area = create_render_panel(params);
 	GtkWidget *sidebar = create_side_panel(params);
