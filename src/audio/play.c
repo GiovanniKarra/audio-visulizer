@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <portaudio.h>
 
 #include "audio.h"
@@ -21,23 +22,26 @@ int audio_player_callback(
 ) {
 	audio_data *audio = (audio_data*)userData;
 	float *out = (float*)outputBuffer;
-	for (int i = 0; i < framesPerBuffer; i++) {
-		out[i] = audio->paused ? 0 : audio->data[audio->time_index+i];
+	if (audio->paused) {
+		memset(out, 0, framesPerBuffer*audio->channels*sizeof(float));
 	}
-	if (!audio->paused) audio->time_index += framesPerBuffer;
+	else {
+		memcpy(out, audio->data+audio->time_index*audio->channels, framesPerBuffer*audio->channels*sizeof(float));
+		audio->time_index += framesPerBuffer;
+	}
 	return 0;
 }
 
 
 void play_audio_signal(PaStream **stream, audio_data *audio) {
-	PaError err = Pa_AbortStream(*stream);
-	if (err != paNoError) {
-		printf("Abort stream error : %s\n", Pa_GetErrorText(err));
-	}
-	err = Pa_OpenDefaultStream(
+	// PaError err = Pa_AbortStream(*stream);
+	// if (err != paNoError) {
+	// 	printf("Abort stream error : %s\n", Pa_GetErrorText(err));
+	// }
+	PaError err = Pa_OpenDefaultStream(
 		stream,
 		0,
-		1,
+		audio->channels,
 		paFloat32,
 		audio->sample_rate,
 		1024,

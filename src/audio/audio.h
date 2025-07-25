@@ -17,6 +17,7 @@ typedef struct {
 } audio_data;
 
 int giodio_file_to_audio(const char *filename, audio_data *ret);
+int wav_file_to_audio(const char *filename, audio_data *ret);
 
 void play_audio_signal(PaStream **stream, audio_data *audio);
 void init_portaudio();

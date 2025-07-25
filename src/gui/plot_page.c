@@ -134,13 +134,22 @@ GtkWidget *create_slider(int *associated_variable, int min_value, int max_value)
 // FILE CHOOSER
 
 void set_audio_file(const char *filename, plot_params *params) {
-	// PaError err = Pa_AbortStream(params->stream);
-	// if (err != paNoError) {
-	// 	printf("Abort stream error : %s\n", Pa_GetErrorText(err));
-	// }
-	giodio_file_to_audio(filename, &params->signal);
+	PaError err = Pa_AbortStream(params->stream);
+	if (err != paNoError) {
+		printf("Abort stream error : %s\n", Pa_GetErrorText(err));
+	}
+	char *extension = strrchr(filename, '.')+1;
+	if (strcmp(extension, "giodio") == 0) {
+		giodio_file_to_audio(filename, &params->signal);
+	}
+	else if (strcmp(extension, "wav") == 0) {
+		wav_file_to_audio(filename, &params->signal);
+	}
+	else {
+		printf("FILE EXTENSION NOT RECOGNIZED\n");
+	}
 	params->signal.time_index = 0;
-	// play_audio_signal(&params->stream, &params->signal);
+	play_audio_signal(&params->stream, &params->signal);
 }
 
 
@@ -284,7 +293,8 @@ GtkWidget *create_plot_page() {
 	g_object_set_data_full(G_OBJECT(grid), "params", params, g_free);
 	
 	params->bin_count = 1000;
-	giodio_file_to_audio("../song.giodio", &params->signal);
+	wav_file_to_audio("../grimm.wav", &params->signal);
+	// giodio_file_to_audio("../song.giodio", &params->signal);
 
 	init_portaudio();
 	play_audio_signal(&params->stream, &params->signal);

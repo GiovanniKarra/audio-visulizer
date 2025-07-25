@@ -15,10 +15,10 @@ add_executable(main
 )
 
 target_include_directories(main PRIVATE ${GTK4_INCLUDE_DIRS})
-target_link_libraries(main PRIVATE ${GTK4_LIBRARIES} -lGL glad m portaudio)# libsndfile)
+target_link_libraries(main PRIVATE ${GTK4_LIBRARIES} -lGL glad m portaudio sndfile)
 target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Werror)
 # target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Wall -Wextra -Wpedantic -Werror)
 
 add_subdirectory(glad)
 add_subdirectory(portaudio)
-# add_subdirectory(libsndfile)
+add_subdirectory(libsndfile)
