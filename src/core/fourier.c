@@ -6,10 +6,15 @@
 int dftc(const complex double *input_buf, complex double *output_buf, const size_t buf_size) {
 	for (size_t i = 0; i < buf_size; i++) {
 		complex double sum = 0;
-		for (size_t j = 0; j < buf_size; j++) {
-			sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+		if (i < buf_size/2) {
+			for (size_t j = 0; j < buf_size; j++) {
+				sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+			}
+			output_buf[i] = sum;
 		}
-		output_buf[i] = sum;
+		else {
+			output_buf[i] = output_buf[buf_size-i];
+		}
 	}
 	return 0;
 }
@@ -17,10 +22,15 @@ int dftc(const complex double *input_buf, complex double *output_buf, const size
 int dftd(const double *input_buf, complex double *output_buf, const size_t buf_size) {
 	for (size_t i = 0; i < buf_size; i++) {
 		complex double sum = 0;
-		for (size_t j = 0; j < buf_size; j++) {
-			sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+		if (i < buf_size/2) {
+			for (size_t j = 0; j < buf_size; j++) {
+				sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+			}
+			output_buf[i] = sum;
 		}
-		output_buf[i] = sum;
+		else {
+			output_buf[i] = output_buf[buf_size-i];
+		}
 	}
 	return 0;
 }
@@ -28,10 +38,15 @@ int dftd(const double *input_buf, complex double *output_buf, const size_t buf_s
 int dftf(const float *input_buf, complex double *output_buf, const size_t buf_size) {
 	for (size_t i = 0; i < buf_size; i++) {
 		complex double sum = 0;
-		for (size_t j = 0; j < buf_size; j++) {
-			sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+		if (i < buf_size/2) {
+			for (size_t j = 0; j < buf_size; j++) {
+				sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
+			}
+			output_buf[i] = sum;
 		}
-		output_buf[i] = sum;
+		else {
+			output_buf[i] = output_buf[buf_size-i];
+		}
 	}
 	return 0;
 }
@@ -60,8 +75,8 @@ void *dftf_thread(void *arg) {
 
 int dftf_para(const float *input_buf, complex double *output_buf, const size_t buf_size, const uint8_t nthreads) {
 	pthread_t threads[nthreads];
-	size_t n_per_thread = buf_size/nthreads;
-	size_t rest = buf_size%n_per_thread;
+	size_t n_per_thread = buf_size/2/nthreads;
+	size_t rest = (buf_size/2)%n_per_thread;
 	dft_params_t params[nthreads];
 	for (size_t i = 0; i < nthreads; i++) {
 		size_t n = n_per_thread + (i+1 == nthreads? rest: 0);
@@ -70,6 +85,9 @@ int dftf_para(const float *input_buf, complex double *output_buf, const size_t b
 	}
 	for (size_t i = 0; i < nthreads; i++) {
 		pthread_join(threads[i], NULL);
+	}
+	for (size_t i = buf_size/2; i < buf_size; i++) {
+		output_buf[i] = output_buf[buf_size-i];
 	}
 	return 0;
 }

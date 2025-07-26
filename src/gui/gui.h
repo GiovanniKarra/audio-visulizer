@@ -11,7 +11,7 @@
 #define PAGE_MAINMENU 0
 #define PAGE_PLOTTER 1
 
-#define MAX_FREQ_BINS 1000
+#define MAX_FREQ_BINS 5000
 
 typedef struct {
 	int bin_count;

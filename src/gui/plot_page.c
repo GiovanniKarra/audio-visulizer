@@ -14,10 +14,20 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 	glViewport(0, 0, width, height);
 
 	size_t n = params->bin_count;
-
+	uint32_t time_index = params->signal.time_index*params->signal.channels;
+	
+	float agg_data[n];
+	for (int i = 0; i < n; i++) {
+		float sum = 0;
+		for (int j = 0; j < params->signal.channels; j++) {
+			sum += *(params->signal.data+time_index+i*params->signal.channels+j);
+		}
+		agg_data[i] = sum+params->signal.channels;
+	}
 	complex double freq_data[n];
 	float real_data[n];
-	dftf_para(params->signal.data+params->signal.time_index, freq_data, n, 16);
+	dftf_para(agg_data, freq_data, n, 16);
+	// dftf(agg_data, freq_data, n);
 	for (size_t i = 0; i < n; i++) {
 		real_data[i] = cabs(freq_data[i]);
 	}
