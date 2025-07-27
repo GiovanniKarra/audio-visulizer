@@ -6,15 +6,10 @@
 int dftc(const complex double *input_buf, complex double *output_buf, const size_t buf_size) {
 	for (size_t i = 0; i < buf_size; i++) {
 		complex double sum = 0;
-		if (i < buf_size/2) {
-			for (size_t j = 0; j < buf_size; j++) {
-				sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
-			}
-			output_buf[i] = sum;
+		for (size_t j = 0; j < buf_size; j++) {
+			sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
 		}
-		else {
-			output_buf[i] = output_buf[buf_size-i];
-		}
+		output_buf[i] = sum;
 	}
 	return 0;
 }
