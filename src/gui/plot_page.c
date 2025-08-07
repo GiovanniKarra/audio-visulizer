@@ -15,6 +15,18 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 
 	size_t n = params->bin_count;
 	uint32_t time_index = params->signal.time_index*params->signal.channels;
+	float current_time = g_get_monotonic_time()*1e-6;
+	if (params->signal.time_index == params->render.last_time_index
+		&& params->render.last_time_index != 0
+		&& params->virtual_frames_enabled) {
+		float time_since_last_tick = current_time-params->render.last_time_tick_update;
+		float virtual_time_delta = time_since_last_tick*params->signal.sample_rate*params->signal.channels;
+		time_index += (uint32_t)virtual_time_delta;
+	}
+	else {
+		params->render.last_time_index = params->signal.time_index;
+		params->render.last_time_tick_update = current_time;
+	}
 	
 	float agg_data[n];
 	for (int i = 0; i < n; i++) {
@@ -26,8 +38,8 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 	}
 	complex double freq_data[n];
 	float real_data[n];
-	dftf_para(agg_data, freq_data, n, 16);
-	// dftf(agg_data, freq_data, n);
+	if (params->thread_count == 1) dftf(agg_data, freq_data, n);
+	else dftf_para(agg_data, freq_data, n, params->thread_count);
 	for (size_t i = 0; i < n; i++) {
 		real_data[i] = cabs(freq_data[i]);
 	}
@@ -93,17 +105,39 @@ gboolean graphics_tick(gpointer data) {
 	return TRUE;
 }
 
+gboolean time_tick(gpointer data) {
+	audio_data *signal = (audio_data*)data;
+	signal->time_index += (uint32_t)floor(signal->sample_rate*1.0/60);
+	return TRUE;
+}
+
 
 GtkWidget *create_render_panel(plot_params *params) {
 	GtkWidget *plotting_area = gtk_gl_area_new();
 	g_signal_connect(plotting_area, "realize", G_CALLBACK(on_realize), NULL);
 	g_signal_connect(plotting_area, "render", G_CALLBACK(render), params);
 	g_timeout_add(16, graphics_tick, plotting_area);
+	// g_timeout_add(16, time_tick, &params->signal);
 	return plotting_area;
 }
 
 
 /* SIDE PARAMETER PANEL */
+
+
+// GENERIC CHECK BOX
+
+void check_box_toggled(GtkCheckButton *self, gpointer data) {
+	gboolean *variable = (gboolean*)data;
+	*variable = gtk_check_button_get_active(self);
+}
+
+GtkWidget *create_check_box(const char *label, gboolean *associated_variable) {
+	GtkWidget *check_box = gtk_check_button_new_with_label(label);
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(check_box), *associated_variable);
+	g_signal_connect(check_box, "toggled", G_CALLBACK(check_box_toggled), associated_variable);
+	return check_box;
+}
 
 
 // BIN COUNT
@@ -114,7 +148,7 @@ void slider_value_changed(GtkAdjustment *self, gpointer data) {
 }
 
 
-GtkWidget *create_slider(int *associated_variable, int min_value, int max_value) {
+GtkWidget *create_slider(const char *label, int *associated_variable, int min_value, int max_value) {
 	GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
 	GtkWidget *slider_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -134,7 +168,7 @@ GtkWidget *create_slider(int *associated_variable, int min_value, int max_value)
 	gtk_widget_set_hexpand(slider_box, TRUE);
 	gtk_widget_set_hexpand(slider, TRUE);
 
-	gtk_box_append(GTK_BOX(box), gtk_label_new("Bin Count"));
+	gtk_box_append(GTK_BOX(box), gtk_label_new(label));
 	gtk_box_append(GTK_BOX(box), slider_box);
 
 	return box;
@@ -225,8 +259,10 @@ GtkWidget *create_audio_file_loader(plot_params *params) {
 GtkWidget *create_side_panel(plot_params *params) {
 	GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
 	
-	gtk_box_append(GTK_BOX(sidebar), create_slider(&params->bin_count, 20, MAX_FREQ_BINS));
+	gtk_box_append(GTK_BOX(sidebar), create_slider("Bin count", &params->bin_count, 20, MAX_FREQ_BINS));
+	gtk_box_append(GTK_BOX(sidebar), create_slider("Thread count", &params->thread_count, 1, 16));
 	gtk_box_append(GTK_BOX(sidebar), create_audio_file_loader(params));
+	gtk_box_append(GTK_BOX(sidebar), create_check_box("Virtual frames", &params->virtual_frames_enabled));
 
 	return sidebar;
 }
@@ -303,8 +339,11 @@ GtkWidget *create_plot_page() {
 	g_object_set_data_full(G_OBJECT(grid), "params", params, g_free);
 	
 	params->bin_count = 1000;
+	params->thread_count = 1;
+	params->virtual_frames_enabled = true;
 	wav_file_to_audio("../grimm.wav", &params->signal);
 	// giodio_file_to_audio("../song.giodio", &params->signal);
+	// params->render.last_time_tick_update = g_get_real_time()*1e-6;
 
 	init_portaudio();
 	play_audio_signal(&params->stream, &params->signal);
@@ -315,7 +354,7 @@ GtkWidget *create_plot_page() {
 
 	gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
 	gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
-	gtk_grid_attach(GTK_GRID(grid), sidebar, 0, 0, 3, 1);
+	gtk_grid_attach(GTK_GRID(grid), sidebar, 0, 0, 3, 9);
 	gtk_grid_attach(GTK_GRID(grid), plotting_area, 3, 0, 7, 9);
 	gtk_grid_attach(GTK_GRID(grid), timescale, 3, 9, 7, 1);
 	

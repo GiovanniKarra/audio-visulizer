@@ -44,7 +44,7 @@ void play_audio_signal(PaStream **stream, audio_data *audio) {
 		audio->channels,
 		paFloat32,
 		audio->sample_rate,
-		1024,
+		2048,
 		audio_player_callback,
 		(void*)audio
 	);

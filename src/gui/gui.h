@@ -14,9 +14,17 @@
 #define MAX_FREQ_BINS 5000
 
 typedef struct {
+	uint32_t last_time_index;
+	float last_time_tick_update;
+} render_data;
+
+typedef struct {
 	int bin_count;
 	audio_data signal;
 	PaStream *stream;
+	render_data render;
+	gboolean virtual_frames_enabled;
+	int thread_count;
 } plot_params;
 
 GtkWidget *create_mainmenu_page();
