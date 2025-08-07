@@ -117,3 +117,8 @@ void solid_color_background(float r, float g, float b, float a) {
 	glClearColor(r, g, b, a);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
+
+void set_drawing_color(gl_state *state, float r, float g, float b, float a) {
+	GLint vertexColorLocation = glGetUniformLocation(state->shaderProgram, "color");
+	glUniform4f(vertexColorLocation, r, g, b, a);
+}

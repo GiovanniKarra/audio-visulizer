@@ -65,7 +65,18 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 	}
 
 	prepare_to_draw(state, vertices, sizeof(vertices));
-	solid_color_background(0, 0, 0, 0);
+	solid_color_background(
+		params->background_color.red,
+		params->background_color.green,
+		params->background_color.blue,
+		params->background_color.alpha
+	);
+	set_drawing_color(state,
+		params->plot_color.red,
+		params->plot_color.green,
+		params->plot_color.blue,
+		params->plot_color.alpha
+	);
 
 	// printf("max: %lf\n", max_y);
 	glLineWidth(2);
@@ -139,6 +150,24 @@ GtkWidget *create_check_box(const char *label, gboolean *associated_variable) {
 	return check_box;
 }
 
+
+// COLOR PICKER
+void color_set(GtkColorButton *self, gpointer user_data) {
+	GdkRGBA *associated_variable = (GdkRGBA*)user_data;
+	gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(self), associated_variable);
+}
+
+
+GtkWidget *create_color_picker(const char *label, GdkRGBA *associated_variable) {
+	GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+
+	GtkWidget *color_picker = gtk_color_button_new_with_rgba(associated_variable);
+	g_signal_connect(color_picker, "color-set", G_CALLBACK(color_set), associated_variable);
+
+	gtk_box_append(GTK_BOX(box), color_picker);
+
+	return box;
+}
 
 // BIN COUNT
 
@@ -257,12 +286,14 @@ GtkWidget *create_audio_file_loader(plot_params *params) {
 
 
 GtkWidget *create_side_panel(plot_params *params) {
-	GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-	
+	GtkWidget *sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);	
+
 	gtk_box_append(GTK_BOX(sidebar), create_slider("Bin count", &params->bin_count, 20, MAX_FREQ_BINS));
 	gtk_box_append(GTK_BOX(sidebar), create_slider("Thread count", &params->thread_count, 1, 16));
 	gtk_box_append(GTK_BOX(sidebar), create_audio_file_loader(params));
 	gtk_box_append(GTK_BOX(sidebar), create_check_box("Virtual frames", &params->virtual_frames_enabled));
+	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Background color", &params->background_color));
+	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Plot color", &params->plot_color));
 
 	return sidebar;
 }
@@ -338,6 +369,8 @@ GtkWidget *create_plot_page() {
 	plot_params *params = g_new0(plot_params, 1);
 	g_object_set_data_full(G_OBJECT(grid), "params", params, g_free);
 	
+	params->background_color = (GdkRGBA){0.0, 0.0, 0.0, 0.0};
+	params->plot_color = (GdkRGBA){1.0, 0.5, 0.2, 1.0};
 	params->bin_count = 1000;
 	params->thread_count = 1;
 	params->virtual_frames_enabled = true;

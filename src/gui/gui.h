@@ -25,6 +25,8 @@ typedef struct {
 	render_data render;
 	gboolean virtual_frames_enabled;
 	int thread_count;
+	GdkRGBA background_color;
+	GdkRGBA plot_color;
 } plot_params;
 
 GtkWidget *create_mainmenu_page();

@@ -16,5 +16,6 @@ GLuint create_shader_program(const char *vertex, const char *fragment);
 void create_gl_buffers(gl_state *state, size_t vertex_count);
 void prepare_to_draw(gl_state *state, const float *vertices, size_t size);
 void solid_color_background(float r, float g, float b, float a);
+void set_drawing_color(gl_state *state, float r, float g, float b, float a);
 
 #endif
