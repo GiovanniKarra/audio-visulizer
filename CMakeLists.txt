@@ -22,3 +22,9 @@ target_compile_options(main PRIVATE ${GTK4_CFLAGS_OTHER} -Werror)
 add_subdirectory(glad)
 add_subdirectory(portaudio)
 add_subdirectory(libsndfile)
+
+add_executable(test
+	tests/test_fourier.c
+	src/core/fourier.c
+)
+target_link_libraries(test PRIVATE m)

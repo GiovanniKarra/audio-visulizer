@@ -30,17 +30,18 @@ int dftd(const double *input_buf, complex double *output_buf, const size_t buf_s
 	return 0;
 }
 
-int dftf(const float *input_buf, complex double *output_buf, const size_t buf_size) {
-	for (size_t i = 0; i < buf_size; i++) {
+int dftf(const float *input_buf, complex double *output_buf, const size_t buf_size, size_t stop_index) {
+	if (stop_index == 0.0) stop_index = buf_size;
+	for (size_t i = 0; i < stop_index; i++) {
 		complex double sum = 0;
-		if (i < buf_size/2) {
+		if (i < stop_index/2) {
 			for (size_t j = 0; j < buf_size; j++) {
 				sum += input_buf[j]*cexp(-I*2*M_PI*i*j/buf_size);
 			}
 			output_buf[i] = sum;
 		}
 		else {
-			output_buf[i] = output_buf[buf_size-i];
+			output_buf[i] = output_buf[stop_index-i];
 		}
 	}
 	return 0;
@@ -68,10 +69,11 @@ void *dftf_thread(void *arg) {
 	return NULL;
 }
 
-int dftf_para(const float *input_buf, complex double *output_buf, const size_t buf_size, const uint8_t nthreads) {
+int dftf_para(const float *input_buf, complex double *output_buf, const size_t buf_size, size_t stop_index, const uint8_t nthreads) {
+	if (stop_index == 0.0) stop_index = buf_size;
 	pthread_t threads[nthreads];
-	size_t n_per_thread = buf_size/2/nthreads;
-	size_t rest = (buf_size/2)%n_per_thread;
+	size_t n_per_thread = stop_index/2/nthreads;
+	size_t rest = (stop_index/2)%n_per_thread;
 	dft_params_t params[nthreads];
 	for (size_t i = 0; i < nthreads; i++) {
 		size_t n = n_per_thread + (i+1 == nthreads? rest: 0);
@@ -81,8 +83,8 @@ int dftf_para(const float *input_buf, complex double *output_buf, const size_t b
 	for (size_t i = 0; i < nthreads; i++) {
 		pthread_join(threads[i], NULL);
 	}
-	for (size_t i = buf_size/2; i < buf_size; i++) {
-		output_buf[i] = output_buf[buf_size-i];
+	for (size_t i = stop_index/2; i < stop_index; i++) {
+		output_buf[i] = output_buf[stop_index-i];
 	}
 	return 0;
 }
@@ -95,6 +97,27 @@ complex double dft_at(const size_t i, const complex double *input_buf, const siz
 	return sum;
 }
 
+// int dftf_log(const float *input_buf, complex double *output_buf, const size_t out_buf_size, const size_t in_buf_size) {
+// 	for (size_t i = 0; i < out_buf_size; i++) {
+// 		complex double sum = 0;
+// 		if (i < out_buf_size/2) {
+// 			double idx_log = pow(in_buf_size*1.0, i*1.0/(out_buf_size-1));
+// 			size_t idx = (size_t)idx_log;
+// 			double alpha = idx_log-idx;
+// 			for (size_t j = 0; j < in_buf_size; j++) {
+// 				double val = input_buf[j]*cexp(-I*2*M_PI*idx*j/in_buf_size);
+// 				// double next_val = input_buf[j]*cexp(-I*2*M_PI*(idx+1)*j/in_buf_size);
+// 				// sum += (1-alpha)*val + alpha*next_val;
+// 				sum += val;
+// 			}
+// 			output_buf[i] = sum;
+// 		}
+// 		else {
+// 			output_buf[i] = output_buf[out_buf_size-i];
+// 		}
+// 	}
+// 	return 0;
+// }
 
 // int main() {
 // 	int n = 100;

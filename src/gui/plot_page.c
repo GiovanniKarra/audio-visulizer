@@ -13,12 +13,15 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 
 	glViewport(0, 0, width, height);
 
+	// size_t in_n = params->bin_count*50;
 	size_t n = params->bin_count;
+	size_t in_n = n*100.0/params->truncation_factor;
 	uint32_t time_index = params->signal.time_index*params->signal.channels;
 	float current_time = g_get_monotonic_time()*1e-6;
 	if (params->signal.time_index == params->render.last_time_index
 		&& params->render.last_time_index != 0
-		&& params->virtual_frames_enabled) {
+		&& params->virtual_frames_enabled
+		&& !params->signal.paused) {
 		float time_since_last_tick = current_time-params->render.last_time_tick_update;
 		float virtual_time_delta = time_since_last_tick*params->signal.sample_rate*params->signal.channels;
 		time_index += (uint32_t)virtual_time_delta;
@@ -28,8 +31,8 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 		params->render.last_time_tick_update = current_time;
 	}
 	
-	float agg_data[n];
-	for (int i = 0; i < n; i++) {
+	float agg_data[in_n];
+	for (int i = 0; i < in_n; i++) {
 		float sum = 0;
 		for (int j = 0; j < params->signal.channels; j++) {
 			sum += *(params->signal.data+time_index+i*params->signal.channels+j);
@@ -38,8 +41,9 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 	}
 	complex double freq_data[n];
 	float real_data[n];
-	if (params->thread_count == 1) dftf(agg_data, freq_data, n);
-	else dftf_para(agg_data, freq_data, n, params->thread_count);
+	// if (params->thread_count == 1) dftf(agg_data, freq_data, n);
+	if (params->thread_count == 1) dftf(agg_data, freq_data, in_n, n);
+	else dftf_para(agg_data, freq_data, in_n, n, params->thread_count);
 	for (size_t i = 0; i < n; i++) {
 		real_data[i] = cabs(freq_data[i]);
 	}
@@ -55,7 +59,7 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 
 	for (size_t i = 0; i < n; i++) {
 		double angle = i*2*M_PI/(n-1);
-		double radius = real_data[i]/100+0.6;
+		double radius = (real_data[i]/params->scale_down+1)*params->radius*0.01;
 		vertices[3*i] = radius*cos(angle);
 		vertices[3*i+1] = radius*sin(angle);
 		vertices[3*i+2] = 0.0;
@@ -294,6 +298,9 @@ GtkWidget *create_side_panel(plot_params *params) {
 	gtk_box_append(GTK_BOX(sidebar), create_check_box("Virtual frames", &params->virtual_frames_enabled));
 	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Background color", &params->background_color));
 	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Plot color", &params->plot_color));
+	gtk_box_append(GTK_BOX(sidebar), create_slider("Radius", &params->radius, 1, 100));
+	gtk_box_append(GTK_BOX(sidebar), create_slider("Peak scale down", &params->scale_down, 1, 500));
+	gtk_box_append(GTK_BOX(sidebar), create_slider("Truncation factor (%)", &params->truncation_factor, 1, 100));
 
 	return sidebar;
 }
@@ -371,6 +378,9 @@ GtkWidget *create_plot_page() {
 	
 	params->background_color = (GdkRGBA){0.0, 0.0, 0.0, 0.0};
 	params->plot_color = (GdkRGBA){1.0, 0.5, 0.2, 1.0};
+	params->radius = 40;
+	params->scale_down = 100;
+	params->truncation_factor = 100;
 	params->bin_count = 1000;
 	params->thread_count = 1;
 	params->virtual_frames_enabled = true;

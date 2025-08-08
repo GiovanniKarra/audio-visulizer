@@ -20,6 +20,7 @@ typedef struct {
 
 typedef struct {
 	int bin_count;
+	int truncation_factor;
 	audio_data signal;
 	PaStream *stream;
 	render_data render;
@@ -27,6 +28,8 @@ typedef struct {
 	int thread_count;
 	GdkRGBA background_color;
 	GdkRGBA plot_color;
+	int radius;
+	int scale_down;
 } plot_params;
 
 GtkWidget *create_mainmenu_page();
