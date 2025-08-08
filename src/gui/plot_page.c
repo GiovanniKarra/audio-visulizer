@@ -75,16 +75,24 @@ gboolean render(GtkGLArea *area, GdkGLContext *context, gpointer data) {
 		params->background_color.blue,
 		params->background_color.alpha
 	);
+
+	if (params->outline) {
+		set_drawing_color(state, 0.0, 0.0, 0.0, 1.0);
+		glLineWidth(4);
+		glDrawArrays(GL_LINE_STRIP, 0, n);
+	}
+
 	set_drawing_color(state,
 		params->plot_color.red,
 		params->plot_color.green,
 		params->plot_color.blue,
 		params->plot_color.alpha
 	);
-
+	
 	// printf("max: %lf\n", max_y);
 	glLineWidth(2);
 	glDrawArrays(GL_LINE_STRIP, 0, n);
+
 
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
@@ -296,6 +304,7 @@ GtkWidget *create_side_panel(plot_params *params) {
 	gtk_box_append(GTK_BOX(sidebar), create_slider("Thread count", &params->thread_count, 1, 16));
 	gtk_box_append(GTK_BOX(sidebar), create_audio_file_loader(params));
 	gtk_box_append(GTK_BOX(sidebar), create_check_box("Virtual frames", &params->virtual_frames_enabled));
+	gtk_box_append(GTK_BOX(sidebar), create_check_box("Outline", &params->outline));
 	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Background color", &params->background_color));
 	gtk_box_append(GTK_BOX(sidebar), create_color_picker("Plot color", &params->plot_color));
 	gtk_box_append(GTK_BOX(sidebar), create_slider("Radius", &params->radius, 1, 100));
@@ -384,6 +393,7 @@ GtkWidget *create_plot_page() {
 	params->bin_count = 1000;
 	params->thread_count = 1;
 	params->virtual_frames_enabled = true;
+	params->outline = false;
 	wav_file_to_audio("../grimm.wav", &params->signal);
 	// giodio_file_to_audio("../song.giodio", &params->signal);
 	// params->render.last_time_tick_update = g_get_real_time()*1e-6;

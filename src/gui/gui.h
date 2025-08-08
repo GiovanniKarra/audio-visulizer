@@ -30,6 +30,7 @@ typedef struct {
 	GdkRGBA plot_color;
 	int radius;
 	int scale_down;
+	gboolean outline;
 } plot_params;
 
 GtkWidget *create_mainmenu_page();
